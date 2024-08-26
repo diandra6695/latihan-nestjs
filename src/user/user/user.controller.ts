@@ -4,6 +4,7 @@ import {
   Get,
   Header,
   HttpCode,
+  Inject,
   Param,
   Post,
   Query,
@@ -12,6 +13,11 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Response } from 'express';
+import { UserService } from './user.service';
+import { Connection } from '../connection/connection';
+import { MailService } from '../mail/mail';
+import { UserRepository } from '../user-repository/user-repository';
+import { MemberService } from '../member/member.service';
 
 type TypeBody = {
   nama: string;
@@ -20,10 +26,44 @@ type TypeBody = {
 
 @Controller('api/users')
 export class UserController {
+  constructor(
+    private service: UserService,
+    private connection: Connection,
+    private mailService: MailService,
+    @Inject('EmailService') private emailService: MailService,
+    private userRepository: UserRepository,
+    private memberService: MemberService,
+  ) {}
+
+  @Get('/connection')
+  async getConnection(): Promise<string> {
+    this.userRepository.save();
+    this.mailService.send();
+    this.emailService.send();
+
+    console.info(this.memberService.getConnectionName());
+    this.memberService.sendEmail();
+
+    return this.connection.getName();
+  }
+
+  @Get('/hello')
+  sayHello(@Query('name') name: string): string {
+    return this.service.sayHello(name);
+  }
+
   @Get('set-cookie')
   setCookie(@Query('name') name: string, @Res() response: Response) {
     response.cookie('name', name);
     response.status(200).send('success set cookie');
+  }
+
+  @Get('view/hello')
+  viewHello(@Query('name') name: string, @Res() response: Response) {
+    response.render('index.html', {
+      title: 'Template Engine',
+      name: name,
+    });
   }
 
   @Get('get-cookie')
@@ -60,10 +100,6 @@ export class UserController {
     return 'test';
   }
 
-  @Get('/hello')
-  sayHello(@Query('name') name: string): string {
-    return `Hello ${name || 'guset'}`;
-  }
   @Get('/:id')
   get(@Param('id') id: string): string {
     return `request: ${id}`;
