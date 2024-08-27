@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   Res,
+  UseFilters,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Response } from 'express';
@@ -18,6 +19,8 @@ import { Connection } from '../connection/connection';
 import { MailService } from '../mail/mail';
 import { UserRepository } from '../user-repository/user-repository';
 import { MemberService } from '../member/member.service';
+import { User } from '@prisma/client';
+import { ValidationFilter } from 'src/validation/validation.filter';
 
 type TypeBody = {
   nama: string;
@@ -35,9 +38,14 @@ export class UserController {
     private memberService: MemberService,
   ) {}
 
+  @Get('/hello')
+  @UseFilters(ValidationFilter)
+  async sayHello(@Query('name') name: string): Promise<string> {
+    return this.service.sayHello(name);
+  }
+
   @Get('/connection')
   async getConnection(): Promise<string> {
-    this.userRepository.save();
     this.mailService.send();
     this.emailService.send();
 
@@ -47,9 +55,12 @@ export class UserController {
     return this.connection.getName();
   }
 
-  @Get('/hello')
-  sayHello(@Query('name') name: string): string {
-    return this.service.sayHello(name);
+  @Get('/create')
+  async create(
+    @Query('first_name') firstName: string,
+    @Query('last_name') lastName?: string,
+  ): Promise<User> {
+    return this.userRepository.save(firstName, lastName);
   }
 
   @Get('set-cookie')
