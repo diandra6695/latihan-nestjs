@@ -4,13 +4,17 @@ import {
   Get,
   Header,
   HttpCode,
+  HttpException,
   Inject,
   Param,
+  ParseIntPipe,
   Post,
   Query,
   Req,
   Res,
   UseFilters,
+  UseInterceptors,
+  UsePipes,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { Response } from 'express';
@@ -21,6 +25,13 @@ import { UserRepository } from '../user-repository/user-repository';
 import { MemberService } from '../member/member.service';
 import { User } from '@prisma/client';
 import { ValidationFilter } from 'src/validation/validation.filter';
+import {
+  LoginUserRequest,
+  loginUserRequestValidation,
+} from 'src/model/login.model';
+import { ValidationPipe } from 'src/validation/validation.pipe';
+import { TimeInterceptor } from 'src/time/time.interceptor';
+import { Auth } from 'src/auth/auth.decorator';
 
 type TypeBody = {
   nama: string;
@@ -38,10 +49,43 @@ export class UserController {
     private memberService: MemberService,
   ) {}
 
-  @Get('/hello')
+  @Get('/current')
+  current(@Auth() user: User): Record<string, any> {
+    return {
+      data: `Hello ${user.first_name} ${user.last_name}`,
+    };
+  }
+
+  @UsePipes(new ValidationPipe(loginUserRequestValidation))
   @UseFilters(ValidationFilter)
+  @Post('/login')
+  @Header('Content-Type', 'application/json')
+  @UseInterceptors(TimeInterceptor)
+  login(@Body() request: LoginUserRequest) {
+    return {
+      data: `Hello ${request.username}`,
+    };
+  }
+
+  @Get('/say/hello')
+  // @UseFilters(ValidationFilter)
   async sayHello(@Query('name') name: string): Promise<string> {
-    return this.service.sayHello(name);
+    return this.service.sayHello('nandae');
+  }
+
+  // @Get('/ganteng')
+  // hainda(
+  //   @Query('name') name: string,
+  //   @Query('alamat') alamat: string,
+  //   @Query('citacita') citacita: string,
+  //   @Query('sayasuka') sayasuka: string,
+  //   @Query('inpomancing') inpomancing: string,
+  // ): string {
+  //   return `nama saya ${name}, alamat saya ${alamat}, citacita saya ${citacita}, saya suka ${sayasuka}, inpo mancing? ${inpomancing}`;
+  // }
+  @Get('/:id')
+  get(@Param('id', ParseIntPipe) id: string): string {
+    return `request: ${id}`;
   }
 
   @Get('/connection')
@@ -60,6 +104,15 @@ export class UserController {
     @Query('first_name') firstName: string,
     @Query('last_name') lastName?: string,
   ): Promise<User> {
+    if (!firstName) {
+      throw new HttpException(
+        {
+          code: 400,
+          errors: 'first_name is required',
+        },
+        400,
+      );
+    }
     return this.userRepository.save(firstName, lastName);
   }
 
@@ -109,10 +162,5 @@ export class UserController {
   @Get('test')
   test(): string {
     return 'test';
-  }
-
-  @Get('/:id')
-  get(@Param('id') id: string): string {
-    return `request: ${id}`;
   }
 }
